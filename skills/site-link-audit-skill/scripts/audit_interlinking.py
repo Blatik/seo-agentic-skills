@@ -215,12 +215,12 @@ def audit_live_website(start_url):
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
     
-    max_crawl_pages = 250
+    max_crawl_pages = 999999
     pages_crawled = 0
     
     print("Починаємо сканування сайту...")
     
-    while queue and pages_crawled < max_crawl_pages:
+    while queue:
         current_url = queue.popleft()
         
         # Clean fragment
