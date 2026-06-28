@@ -22,7 +22,7 @@ seo-agentic-skills/
 └── skills/
     ├── image-optimization-skill/  # Generates stock-style images and converts them to WebP
     ├── social-publishing-skill/   # Crafts captions and publishes posts to FB/Instagram/Pinterest
-    ├── site-link-audit-skill/     # Audits internal and external links for PageRank weight leakages
+    ├── site-link-audit-skill/     # Audits internal (interlinking) and external links for weight leaks and flow health
     ├── seo-content-generator-skill/ # Generates briefs, LSI keywords, and target HTML articles
     └── seo-site-maintenance-skill/ # Updates CTAs, footer links, JSON-LD breadcrumbs, and heals links
 ```
