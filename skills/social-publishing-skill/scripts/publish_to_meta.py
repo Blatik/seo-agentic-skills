@@ -139,7 +139,11 @@ def publish_to_facebook(image_url, caption, article_url, slug):
         return True
         
     print("Publishing photo to Facebook Page...")
-    full_caption = f"{caption}\n\nRead more: {article_url}"
+    # Only append the article link if it's not already in the caption
+    if "read more" not in caption.lower() and "http" not in caption.lower():
+        full_caption = f"{caption}\n\nRead more: {article_url}"
+    else:
+        full_caption = caption
     
     url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/photos"
     payload = urllib.parse.urlencode({
@@ -308,6 +312,17 @@ def main():
         
     keywords_map = get_keywords_from_intents()
     
+    # Load pre-generated captions to avoid calling OpenAI
+    captions_file = os.path.join(prefix, "scratch/all_captions.json")
+    all_captions = {}
+    if os.path.exists(captions_file):
+        try:
+            with open(captions_file, 'r', encoding='utf-8') as f:
+                all_captions = json.load(f)
+            print(f"Loaded {len(all_captions)} pre-generated captions from {captions_file}.")
+        except Exception as e:
+            print(f"Could not load captions file: {e}")
+
     # Scan all generated images to see what is ready to publish
     available_slugs = []
     for file in os.listdir(images_dir):
@@ -368,9 +383,17 @@ def main():
             print("Skipping - article body empty.")
             continue
             
-        caption = call_openai_to_summarize(article_body, keyword)
         image_url = f"{GITHUB_IMAGE_BASE}/{slug}.webp"
         article_url = f"{SITE_ARTICLE_BASE}/{slug}.html"
+
+        # Check for pre-generated caption
+        caption = None
+        if slug in all_captions and all_captions[slug].get("caption"):
+            caption = all_captions[slug]["caption"]
+            print("Using pre-generated caption from cache.")
+        else:
+            caption_raw = call_openai_to_summarize(article_body, keyword)
+            caption = f"{caption_raw}\n\nRead more: {article_url}"
         
         # Publish
         if META_ACCESS_TOKEN and FB_PAGE_ID:
