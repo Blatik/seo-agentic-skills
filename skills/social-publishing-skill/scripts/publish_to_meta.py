@@ -295,6 +295,10 @@ def publish_to_instagram(image_url, caption, slug):
             res_container = json.loads(r.read().decode())
             container_id = res_container["id"]
             
+        # Wait 10 seconds for Instagram to download and process the image
+        print("Waiting 10 seconds for Instagram to process the image container...")
+        time.sleep(10)
+            
         url_publish = f"https://graph.facebook.com/v19.0/{IG_ACCOUNT_ID}/media_publish"
         payload_publish = urllib.parse.urlencode({
             "creation_id": container_id,
