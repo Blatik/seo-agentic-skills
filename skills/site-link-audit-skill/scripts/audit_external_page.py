@@ -64,7 +64,7 @@ def audit_page_links(url):
     except Exception as e:
         print(f"❌ Помилка при завантаженні сторінки: {e}")
         return
-
+    
     parser = LinkParser(url)
     parser.feed(html)
     
@@ -118,7 +118,9 @@ def audit_page_links(url):
         print("=" * 80)
 
 if __name__ == "__main__":
-    target_url = "https://renfrojd.nu/category/mat-dryck/"
     if len(sys.argv) > 1:
         target_url = sys.argv[1]
+    else:
+        user_input = input("Введіть URL сторінки для аналізу лінків (або натисніть Enter для дефолтного https://renfrojd.nu/category/mat-dryck/): ").strip()
+        target_url = user_input if user_input else "https://renfrojd.nu/category/mat-dryck/"
     audit_page_links(target_url)
