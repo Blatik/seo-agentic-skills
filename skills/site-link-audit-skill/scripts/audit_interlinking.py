@@ -189,6 +189,13 @@ def audit_local_files(root_dir):
     else:
         print("  Жодної!")
 
+    # Distribution of link weight (Page authority / Link Juice)
+    print("\n📊 РОЗПОДІЛ ВАГИ СТОРІНОК (ТОП СТОРІНОК ЗА КІЛЬКІСТЮ ВХІДНИХ ПОСИЛАНЬ):")
+    print("=" * 80)
+    sorted_pages = sorted(incoming_links.items(), key=lambda x: len(x[1]), reverse=True)
+    for idx, (path, in_set) in enumerate(sorted_pages[:25], 1):
+        print(f"  [{idx}] {path:<75} | Вхідних посилань: {len(in_set)}")
+
 
 # --- LIVE WEBSITE AUDIT MODE (CRAWLER) ---
 def audit_live_website(start_url):
@@ -387,6 +394,13 @@ def audit_live_website(start_url):
             print(f"  [{idx}] {path} (Вхідних лінків: {count})")
     else:
         print("  Жодної!")
+
+    # Distribution of link weight (Page authority / Link Juice)
+    print("\n📊 РОЗПОДІЛ ВАГИ СТОРІНОК (ТОП СТОРІНОК ЗА КІЛЬКІСТЮ ВХІДНИХ ПОСИЛАНЬ):")
+    print("=" * 80)
+    sorted_pages = sorted(incoming_links.items(), key=lambda x: len(x[1]), reverse=True)
+    for idx, (url, in_set) in enumerate(sorted_pages[:25], 1):
+        print(f"  [{idx}] {url:<75} | Вхідних посилань: {len(in_set)}")
 
 
 if __name__ == "__main__":
