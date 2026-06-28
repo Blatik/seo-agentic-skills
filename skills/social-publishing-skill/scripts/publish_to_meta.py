@@ -149,7 +149,6 @@ def publish_to_facebook(image_url, caption, article_url, slug):
     payload = urllib.parse.urlencode({
         "url": image_url,
         "caption": full_caption,
-        "place": "112463772102047",
         "access_token": META_ACCESS_TOKEN
     }).encode('utf-8')
     
@@ -178,7 +177,6 @@ def publish_to_instagram(image_url, caption, slug):
     payload_container = urllib.parse.urlencode({
         "image_url": image_url,
         "caption": caption,
-        "location_id": "213063546",
         "access_token": META_ACCESS_TOKEN
     }).encode('utf-8')
     
