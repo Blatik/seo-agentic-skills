@@ -8,6 +8,7 @@ This skill enables AI agents to generate SEO-optimized captions for all site art
 - `publish_to_meta.py`: Automatically publishes content with location tagging ("Västerås, Sweden") to linked Facebook, Instagram, and Pinterest profiles. Tracks history in `scratch/published_posts.json` to prevent duplicates.
 - `clean_instagram_captions.py`: Utility script to clean up already published Instagram captions (e.g. replacing 'link below' references with 'link in bio' and removing non-functional URLs).
 - `delete_all_instagram_posts.py`: Administrative utility to clean up/delete all Instagram posts via the API and reset their history.
+- `sync_published_history.py`: Database synchronization utility that scans Facebook and Instagram profiles via API and updates the local history to match reality.
 
 ## Instructions for AI Agents
 
