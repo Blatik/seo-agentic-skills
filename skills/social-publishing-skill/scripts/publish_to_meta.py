@@ -219,10 +219,14 @@ def fetch_pinterest_boards():
         with urllib.request.urlopen(req, context=ssl_context) as r:
             res = json.loads(r.read().decode())
             return res.get("items", [])
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            print("\n⚠️ [Pinterest Warning] Authentication failed (401). Your developer application might still be pending approval. Pinterest publishing will be skipped.")
+        else:
+            print(f"\n⚠️ [Pinterest Warning] HTTP Error {e.code} fetching boards: {e.reason}")
+        return []
     except Exception as e:
-        if hasattr(e, 'read'):
-            print("Pinterest Board Fetch Error:", e.read().decode())
-        print(f"Failed to fetch Pinterest boards: {e}")
+        print(f"\n⚠️ [Pinterest Warning] Failed to fetch Pinterest boards: {e}")
         return []
 
 def publish_to_pinterest(board_id, image_url, title, description, article_url, slug):
