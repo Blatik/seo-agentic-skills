@@ -292,7 +292,10 @@ def audit_live_website(start_url):
             link_graph[clean_current].append(link_info)
             
             # If internal page and not visited/queued, add to queue
-            if is_internal and clean_resolved not in visited_pages and clean_resolved not in queue:
+            # Avoid recursive directory loops (e.g. /en/en/ or /artiklar/artiklar/)
+            path_lower = parsed_target.path.lower()
+            is_loop = '/en/en/' in path_lower or '/artiklar/artiklar/' in path_lower or '/artiklar/en/' in path_lower
+            if is_internal and not is_loop and clean_resolved not in visited_pages and clean_resolved not in queue:
                 # Make sure it's an HTML page (not image or zip)
                 ext = os.path.splitext(parsed_target.path)[1].lower()
                 if ext not in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf', '.zip', '.xml', '.txt']:
