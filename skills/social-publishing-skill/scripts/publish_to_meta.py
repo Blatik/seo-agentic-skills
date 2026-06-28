@@ -30,7 +30,7 @@ IG_ACCOUNT_ID = ENV.get("IG_ACCOUNT_ID", "")
 PINTEREST_ACCESS_TOKEN = ENV.get("PINTEREST_ACCESS_TOKEN", "")
 
 # Public URL base where your images and articles are hosted
-GITHUB_IMAGE_BASE = "https://raw.githubusercontent.com/Blatik/vasteras-puts/main/en/images"
+GITHUB_IMAGE_BASE = "https://vasteras-puts.se/en/images"
 SITE_ARTICLE_BASE = "https://vasteras-puts.se/en/artiklar"
 TRACKING_FILE = "scratch/published_posts.json"
 
@@ -57,6 +57,52 @@ def mark_as_published(slug, platform):
         history[slug] = {}
     history[slug][platform] = True
     save_published_history(history)
+
+def customize_hashtags(caption, post_keyword):
+    # Remove any existing hashtags
+    caption_no_tags = re.sub(r'#\S+', '', caption).strip()
+    
+    # Base hashtags
+    tags = ["#RenFröjd"]
+    
+    # Clean the post's specific keyword to create a hashtag (keeping Swedish characters)
+    clean_kw = re.sub(r'[^\w\s]', '', post_keyword).replace('_', '')
+    kw_tag = '#' + ''.join(word.capitalize() for word in clean_kw.split())
+    if len(kw_tag) > 1 and len(kw_tag) < 35:
+        tags.append(kw_tag)
+        
+    # Top keywords from the CSV
+    top_csv_tags = [
+        "#WindowCleaning",
+        "#WindowWashing",
+        "#ProfessionalWindowCleaning",
+        "#ResidentialWindowCleaning",
+        "#CommercialWindowCleaning",
+        "#LocalWindowCleaners",
+        "#BestWindowCleaner"
+    ]
+    
+    # Add from top_csv_tags until we have 6 tags
+    for t in top_csv_tags:
+        if len(tags) >= 6:
+            break
+        if t.lower() not in [x.lower() for x in tags]:
+            tags.append(t)
+            
+    hashtags_str = " ".join(tags)
+    
+    # Find any Read more link
+    read_more_match = re.search(r'(Read more:\s*https?://\S+)', caption_no_tags, re.IGNORECASE)
+    if read_more_match:
+        read_more_line = read_more_match.group(1)
+        caption_no_tags = caption_no_tags.replace(read_more_line, '').strip()
+        # Clean up any trailing pointing emojis
+        caption_no_tags = re.sub(r'👉\s*$', '', caption_no_tags).strip()
+        caption_no_tags = re.sub(r'👇\s*$', '', caption_no_tags).strip()
+        caption_no_tags = re.sub(r'🔗\s*$', '', caption_no_tags).strip()
+        return f"{caption_no_tags.strip()}\n\n{hashtags_str}\n\n{read_more_line}"
+    else:
+        return f"{caption_no_tags.strip()}\n\n{hashtags_str}"
 
 def is_published(slug, platform):
     history = load_published_history()
@@ -106,7 +152,7 @@ def call_openai_to_summarize(article_text, keyword):
     )
     
     try:
-        with urllib.request.urlopen(req, context=ssl_context) as r:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=30) as r:
             res = json.loads(r.read().decode())
             return res['choices'][0]['message']['content'].strip()
     except Exception as e:
@@ -144,17 +190,54 @@ def publish_to_facebook(image_url, caption, article_url, slug):
         full_caption = f"{caption}\n\nRead more: {article_url}"
     else:
         full_caption = caption
+
+    prefix = ""
+    if not os.path.exists("en") and os.path.exists("../en"):
+        prefix = "../"
+    local_image_path = os.path.join(prefix, f"en/images/{slug}.webp")
+
+    if not os.path.exists(local_image_path):
+        print(f"Error: Local image path not found: {local_image_path}")
+        return False
+
+    with open(local_image_path, "rb") as f:
+        image_data = f.read()
+
+    boundary = b'----WebKitFormBoundary7MA4YWxkTrZu0gW'
+    body = []
     
-    url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/photos"
-    payload = urllib.parse.urlencode({
-        "url": image_url,
+    fields = {
         "caption": full_caption,
         "access_token": META_ACCESS_TOKEN
-    }).encode('utf-8')
+    }
+    for key, value in fields.items():
+        body.append(b'--' + boundary)
+        body.append(f'Content-Disposition: form-data; name="{key}"'.encode('utf-8'))
+        body.append(b'')
+        body.append(str(value).encode('utf-8'))
+        
+    filename = f"{slug}.webp"
+    body.append(b'--' + boundary)
+    body.append(f'Content-Disposition: form-data; name="source"; filename="{filename}"'.encode('utf-8'))
+    body.append(b'Content-Type: image/webp')
+    body.append(b'')
+    body.append(image_data)
     
-    req = urllib.request.Request(url, data=payload, method='POST')
+    body.append(b'--' + boundary + b'--')
+    body.append(b'')
+    
+    url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/photos"
+    req = urllib.request.Request(
+        url,
+        data=b'\r\n'.join(body),
+        headers={
+            'Content-Type': f'multipart/form-data; boundary={boundary.decode("utf-8")}'
+        },
+        method='POST'
+    )
+    
     try:
-        with urllib.request.urlopen(req, context=ssl_context) as r:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=30) as r:
             res = json.loads(r.read().decode())
             print("Successfully published to Facebook Page!")
             mark_as_published(slug, "facebook")
@@ -172,17 +255,43 @@ def publish_to_instagram(image_url, caption, slug):
         print("Instagram: Already published, skipping.")
         return True
         
+    # Clean the caption for Instagram (remove links and placeholders)
+    clean_caption = re.sub(r'click the link below', 'click the link in our bio', caption, flags=re.IGNORECASE)
+    clean_caption = re.sub(r'link(?:s)? below', 'link in our bio', clean_caption, flags=re.IGNORECASE)
+    clean_caption = re.sub(r'Read more:\s*https?://\S+', '', clean_caption)
+    
+    placeholders = [
+        r'\[Your Booking Link\]',
+        r'\[Link\]',
+        r'\[Insert Link\]',
+        r'\[Your Link Here\]',
+        r'\[Link to your service\]',
+        r'\[Book Now\]',
+        r'\[Book Now\]\(#\)',
+        r'👉\s*\[[^\]]+\]',
+        r'👉\s*Link',
+        r'(?m)^\s*👉\s*$',
+        r'(?m)^\s*👇\s*$',
+        r'(?m)^\s*⬇️\s*$',
+        r'👉\s*$',
+        r'👇\s*$',
+        r'⬇️'
+    ]
+    for p in placeholders:
+        clean_caption = re.sub(p, '', clean_caption, flags=re.IGNORECASE)
+    clean_caption = re.sub(r'\n{3,}', '\n\n', clean_caption).strip()
+
     print("Publishing photo to Instagram...")
     url_container = f"https://graph.facebook.com/v19.0/{IG_ACCOUNT_ID}/media"
     payload_container = urllib.parse.urlencode({
         "image_url": image_url,
-        "caption": caption,
+        "caption": clean_caption,
         "access_token": META_ACCESS_TOKEN
     }).encode('utf-8')
     
     req_container = urllib.request.Request(url_container, data=payload_container, method='POST')
     try:
-        with urllib.request.urlopen(req_container, context=ssl_context) as r:
+        with urllib.request.urlopen(req_container, context=ssl_context, timeout=30) as r:
             res_container = json.loads(r.read().decode())
             container_id = res_container["id"]
             
@@ -193,7 +302,7 @@ def publish_to_instagram(image_url, caption, slug):
         }).encode('utf-8')
         
         req_publish = urllib.request.Request(url_publish, data=payload_publish, method='POST')
-        with urllib.request.urlopen(req_publish, context=ssl_context) as r:
+        with urllib.request.urlopen(req_publish, context=ssl_context, timeout=30) as r:
             res_publish = json.loads(r.read().decode())
             print("Successfully published to Instagram!")
             mark_as_published(slug, "instagram")
@@ -218,7 +327,7 @@ def fetch_pinterest_boards():
         method='GET'
     )
     try:
-        with urllib.request.urlopen(req, context=ssl_context) as r:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=30) as r:
             res = json.loads(r.read().decode())
             return res.get("items", [])
     except urllib.error.HTTPError as e:
@@ -265,7 +374,7 @@ def publish_to_pinterest(board_id, image_url, title, description, article_url, s
     )
     
     try:
-        with urllib.request.urlopen(req, context=ssl_context) as r:
+        with urllib.request.urlopen(req, context=ssl_context, timeout=30) as r:
             res = json.loads(r.read().decode())
             print("Successfully created Pin on Pinterest!")
             mark_as_published(slug, "pinterest")
@@ -366,8 +475,16 @@ def main():
             board_id = boards[idx]['id']
             print(f"Selected Board: {boards[idx]['name']}\n")
             
-    confirm = input(f"Would you like to start publishing the {len(to_publish)} pending posts? (yes/no): ").strip().lower()
-    if confirm not in ['yes', 'y']:
+    try:
+        confirm = input(f"Would you like to start publishing the {len(to_publish)} pending posts? (yes/no): ").strip().lower()
+    except UnicodeDecodeError:
+        import sys
+        raw_input = sys.stdin.buffer.readline()
+        confirm = raw_input.decode('utf-8', errors='ignore').strip().lower()
+    except Exception:
+        confirm = 'no'
+        
+    if confirm not in ['yes', 'y', 'да', 'так']:
         print("Exiting.")
         return
         
@@ -392,6 +509,8 @@ def main():
         else:
             caption_raw = call_openai_to_summarize(article_body, keyword)
             caption = f"{caption_raw}\n\nRead more: {article_url}"
+            
+        caption = customize_hashtags(caption, keyword)
         
         # Publish and track success
         fb_ok = True
@@ -400,7 +519,8 @@ def main():
         
         if META_ACCESS_TOKEN and FB_PAGE_ID:
             fb_ok = publish_to_facebook(image_url, caption, article_url, slug)
-            ig_ok = publish_to_instagram(image_url, caption, slug)
+            if IG_ACCOUNT_ID:
+                ig_ok = publish_to_instagram(image_url, caption, slug)
             
         if PINTEREST_ACCESS_TOKEN and board_id:
             title = f"{keyword.capitalize()} in Västerås"

@@ -6,6 +6,8 @@ This skill enables AI agents to generate SEO-optimized captions for all site art
 
 - `generate_all_captions.py`: Scans site articles, summaries their content, appends hashtags/metadata, and stores them in a local JSON database (`all_captions.json`).
 - `publish_to_meta.py`: Automatically publishes content with location tagging ("Västerås, Sweden") to linked Facebook, Instagram, and Pinterest profiles. Tracks history in `scratch/published_posts.json` to prevent duplicates.
+- `clean_instagram_captions.py`: Utility script to clean up already published Instagram captions (e.g. replacing 'link below' references with 'link in bio' and removing non-functional URLs).
+- `delete_all_instagram_posts.py`: Administrative utility to clean up/delete all Instagram posts via the API and reset their history.
 
 ## Instructions for AI Agents
 
