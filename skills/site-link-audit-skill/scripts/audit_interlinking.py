@@ -237,6 +237,7 @@ def audit_live_website(start_url):
             with urllib.request.urlopen(req, context=ssl_context, timeout=8) as response:
                 if 'text/html' not in response.headers.get('Content-Type', '').lower():
                     continue
+                final_url = response.geturl()
                 html = response.read().decode('utf-8', errors='ignore')
                 url_status_cache[clean_current] = 200
         except urllib.error.HTTPError as e:
@@ -248,7 +249,7 @@ def audit_live_website(start_url):
             print(f"  ❌ Мережева помилка: {e}")
             continue
             
-        parser = LinkParser(clean_current)
+        parser = LinkParser(final_url)
         parser.feed(html)
         
         link_graph[clean_current] = []
@@ -260,8 +261,8 @@ def audit_live_website(start_url):
             if not href or href.startswith(('mailto:', 'tel:', 'javascript:')):
                 continue
                 
-            # Resolve full target URL
-            resolved_url = urllib.parse.urljoin(clean_current, href)
+            # Resolve full target URL relative to final redirected URL
+            resolved_url = urllib.parse.urljoin(final_url, href)
             clean_resolved = resolved_url.split('#')[0]
             
             parsed_target = urllib.parse.urlparse(clean_resolved)
