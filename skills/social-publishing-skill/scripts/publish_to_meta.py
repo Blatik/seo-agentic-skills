@@ -395,16 +395,28 @@ def main():
             caption_raw = call_openai_to_summarize(article_body, keyword)
             caption = f"{caption_raw}\n\nRead more: {article_url}"
         
-        # Publish
+        # Publish and track success
+        fb_ok = True
+        ig_ok = True
+        pin_ok = True
+        
         if META_ACCESS_TOKEN and FB_PAGE_ID:
-            publish_to_facebook(image_url, caption, article_url, slug)
-            publish_to_instagram(image_url, caption, slug)
+            fb_ok = publish_to_facebook(image_url, caption, article_url, slug)
+            ig_ok = publish_to_instagram(image_url, caption, slug)
             
         if PINTEREST_ACCESS_TOKEN and board_id:
             title = f"{keyword.capitalize()} in Västerås"
-            publish_to_pinterest(board_id, image_url, title, caption, article_url, slug)
+            pin_ok = publish_to_pinterest(board_id, image_url, title, caption, article_url, slug)
             
-        print(f"[OK] Completed: {slug}")
+        if fb_ok and ig_ok and pin_ok:
+            print(f"✅ [OK] Completed: {slug}")
+        else:
+            status_parts = []
+            if not fb_ok: status_parts.append("Facebook FAILED")
+            if not ig_ok: status_parts.append("Instagram FAILED")
+            if not pin_ok: status_parts.append("Pinterest FAILED")
+            print(f"❌ [PARTIAL FAILURE] {slug}: {', '.join(status_parts)}")
+            
         # Brief sleep between posts to respect API rate limits
         time.sleep(3)
 
