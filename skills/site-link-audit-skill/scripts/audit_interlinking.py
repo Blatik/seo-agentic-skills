@@ -238,6 +238,20 @@ def audit_live_website(start_url):
                 if 'text/html' not in response.headers.get('Content-Type', '').lower():
                     continue
                 final_url = response.geturl()
+                
+                # Normalize directory URLs by ensuring trailing slash
+                parsed = urllib.parse.urlparse(final_url)
+                path = parsed.path.rstrip('/')
+                if path in ['/en', '/artiklar', '/en/artiklar']:
+                    final_url = urllib.parse.urlunparse((
+                        parsed.scheme,
+                        parsed.netloc,
+                        path + '/',
+                        parsed.params,
+                        parsed.query,
+                        parsed.fragment
+                    ))
+                
                 html = response.read().decode('utf-8', errors='ignore')
                 url_status_cache[clean_current] = 200
         except urllib.error.HTTPError as e:
@@ -261,7 +275,7 @@ def audit_live_website(start_url):
             if not href or href.startswith(('mailto:', 'tel:', 'javascript:')):
                 continue
                 
-            # Resolve full target URL relative to final redirected URL
+            # Resolve full target URL relative to final redirected and normalized URL
             resolved_url = urllib.parse.urljoin(final_url, href)
             clean_resolved = resolved_url.split('#')[0]
             
