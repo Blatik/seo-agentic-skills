@@ -4,6 +4,8 @@ import json
 import ssl
 import urllib.request
 import urllib.parse
+import sys
+import time
 
 ssl_context = ssl._create_unverified_context()
 
@@ -25,10 +27,40 @@ OPENAI_API_KEY = ENV.get("OPENAI_API_KEY", "")
 META_ACCESS_TOKEN = ENV.get("META_ACCESS_TOKEN", "")
 FB_PAGE_ID = ENV.get("FB_PAGE_ID", "")
 IG_ACCOUNT_ID = ENV.get("IG_ACCOUNT_ID", "")
+PINTEREST_ACCESS_TOKEN = ENV.get("PINTEREST_ACCESS_TOKEN", "")
 
 # Public URL base where your images and articles are hosted
 GITHUB_IMAGE_BASE = "https://raw.githubusercontent.com/Blatik/vasteras-puts/main/en/images"
 SITE_ARTICLE_BASE = "https://vasteras-puts.se/en/artiklar"
+TRACKING_FILE = "scratch/published_posts.json"
+
+if not os.path.exists("scratch") and os.path.exists("../scratch"):
+    TRACKING_FILE = "../scratch/published_posts.json"
+
+def load_published_history():
+    if os.path.exists(TRACKING_FILE):
+        try:
+            with open(TRACKING_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_published_history(history):
+    os.makedirs(os.path.dirname(TRACKING_FILE), exist_ok=True)
+    with open(TRACKING_FILE, 'w', encoding='utf-8') as f:
+        json.dump(history, f, indent=2, ensure_ascii=False)
+
+def mark_as_published(slug, platform):
+    history = load_published_history()
+    if slug not in history:
+        history[slug] = {}
+    history[slug][platform] = True
+    save_published_history(history)
+
+def is_published(slug, platform):
+    history = load_published_history()
+    return history.get(slug, {}).get(platform, False)
 
 def sanitize_slug(keyword):
     slug = keyword.lower().strip()
@@ -97,21 +129,23 @@ def read_article_body(slug):
     match = re.search(r'<article class="article-content">(.*?)</article>', content, re.DOTALL)
     if match:
         body = match.group(1)
-        # remove html tags
         body = re.sub(r'<[^>]+>', ' ', body)
         return body
     return None
 
-def publish_to_facebook(image_url, caption, article_url):
+def publish_to_facebook(image_url, caption, article_url, slug):
+    if is_published(slug, "facebook"):
+        print("Facebook: Already published, skipping.")
+        return True
+        
     print("Publishing photo to Facebook Page...")
-    # Appending article link to caption
     full_caption = f"{caption}\n\nRead more: {article_url}"
     
     url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}/photos"
     payload = urllib.parse.urlencode({
         "url": image_url,
         "caption": full_caption,
-        "place": "112463772102047",  # Västerås, Sweden Place ID
+        "place": "112463772102047",
         "access_token": META_ACCESS_TOKEN
     }).encode('utf-8')
     
@@ -120,7 +154,7 @@ def publish_to_facebook(image_url, caption, article_url):
         with urllib.request.urlopen(req, context=ssl_context) as r:
             res = json.loads(r.read().decode())
             print("Successfully published to Facebook Page!")
-            print("FB Post ID:", res.get("post_id", res.get("id")))
+            mark_as_published(slug, "facebook")
             return True
     except Exception as e:
         if hasattr(e, 'read'):
@@ -128,18 +162,19 @@ def publish_to_facebook(image_url, caption, article_url):
         print(f"Failed to publish to Facebook: {e}")
         return False
 
-def publish_to_instagram(image_url, caption):
+def publish_to_instagram(image_url, caption, slug):
     if not IG_ACCOUNT_ID:
-        print("Instagram account ID not configured, skipping Instagram.")
         return False
+    if is_published(slug, "instagram"):
+        print("Instagram: Already published, skipping.")
+        return True
         
     print("Publishing photo to Instagram...")
-    # Step 1: Create media container
     url_container = f"https://graph.facebook.com/v19.0/{IG_ACCOUNT_ID}/media"
     payload_container = urllib.parse.urlencode({
         "image_url": image_url,
         "caption": caption,
-        "location_id": "213063546",  # Västerås, Sweden Location ID
+        "location_id": "213063546",
         "access_token": META_ACCESS_TOKEN
     }).encode('utf-8')
     
@@ -149,7 +184,6 @@ def publish_to_instagram(image_url, caption):
             res_container = json.loads(r.read().decode())
             container_id = res_container["id"]
             
-        # Step 2: Publish container
         url_publish = f"https://graph.facebook.com/v19.0/{IG_ACCOUNT_ID}/media_publish"
         payload_publish = urllib.parse.urlencode({
             "creation_id": container_id,
@@ -160,7 +194,7 @@ def publish_to_instagram(image_url, caption):
         with urllib.request.urlopen(req_publish, context=ssl_context) as r:
             res_publish = json.loads(r.read().decode())
             print("Successfully published to Instagram!")
-            print("Instagram Media ID:", res_publish.get("id"))
+            mark_as_published(slug, "instagram")
             return True
     except Exception as e:
         if hasattr(e, 'read'):
@@ -168,45 +202,184 @@ def publish_to_instagram(image_url, caption):
         print(f"Failed to publish to Instagram: {e}")
         return False
 
+def fetch_pinterest_boards():
+    if not PINTEREST_ACCESS_TOKEN:
+        return []
+    print("Fetching Pinterest boards...")
+    url = "https://api.pinterest.com/v5/boards"
+    req = urllib.request.Request(
+        url,
+        headers={
+            'Authorization': f'Bearer {PINTEREST_ACCESS_TOKEN}',
+            'Content-Type': 'application/json'
+        },
+        method='GET'
+    )
+    try:
+        with urllib.request.urlopen(req, context=ssl_context) as r:
+            res = json.loads(r.read().decode())
+            return res.get("items", [])
+    except Exception as e:
+        if hasattr(e, 'read'):
+            print("Pinterest Board Fetch Error:", e.read().decode())
+        print(f"Failed to fetch Pinterest boards: {e}")
+        return []
+
+def publish_to_pinterest(board_id, image_url, title, description, article_url, slug):
+    if is_published(slug, "pinterest"):
+        print("Pinterest: Already published, skipping.")
+        return True
+        
+    print("Creating Pin on Pinterest...")
+    url = "https://api.pinterest.com/v5/pins"
+    
+    clean_desc = re.sub(r'<[^>]+>', ' ', description).strip()
+    if len(clean_desc) > 500:
+        clean_desc = clean_desc[:497] + "..."
+        
+    data = {
+        "link": article_url,
+        "title": title[:100],
+        "description": clean_desc,
+        "media_source": {
+            "source_type": "image_url",
+            "url": image_url
+        },
+        "board_id": board_id
+    }
+    
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(data).encode('utf-8'),
+        headers={
+            'Authorization': f'Bearer {PINTEREST_ACCESS_TOKEN}',
+            'Content-Type': 'application/json'
+        },
+        method='POST'
+    )
+    
+    try:
+        with urllib.request.urlopen(req, context=ssl_context) as r:
+            res = json.loads(r.read().decode())
+            print("Successfully created Pin on Pinterest!")
+            mark_as_published(slug, "pinterest")
+            return True
+    except Exception as e:
+        if hasattr(e, 'read'):
+            print("Pinterest Pin Error Details:", e.read().decode())
+        print(f"Failed to create Pin on Pinterest: {e}")
+        return False
+
+def get_keywords_from_intents():
+    file_path = "../keyword_intents.md"
+    if not os.path.exists(file_path):
+        file_path = "keyword_intents.md"
+    if not os.path.exists(file_path):
+        return {}
+        
+    keywords_map = {}
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            if "|" in line:
+                parts = [p.strip() for p in line.split("|")]
+                if len(parts) >= 6 and parts[1].isdigit():
+                    keyword = parts[2].replace('`', '').strip()
+                    slug = sanitize_slug(keyword)
+                    keywords_map[slug] = keyword
+    return keywords_map
+
 def main():
-    print("=== META SOCIAL PUBLISHING SYSTEM ===")
+    print("=== META & PINTEREST AUTOMATED PUBLISHING FACTORY ===")
     
-    if not META_ACCESS_TOKEN or not FB_PAGE_ID:
-        print("Error: META_ACCESS_TOKEN and FB_PAGE_ID must be set in .env")
+    prefix = ""
+    if not os.path.exists("en") and os.path.exists("../en"):
+        prefix = "../"
+        
+    images_dir = os.path.join(prefix, "en/images")
+    articles_dir = os.path.join(prefix, "en/artiklar")
+    
+    if not os.path.exists(images_dir) or not os.path.exists(articles_dir):
+        print("Error: en/images or en/artiklar directory not found.")
         return
         
-    # Get user input for keyword
-    keyword = input("Enter the article keyword/topic to publish (e.g. 'window cleaning cost'): ").strip()
-    if not keyword:
-        print("No keyword entered. Exiting.")
+    keywords_map = get_keywords_from_intents()
+    
+    # Scan all generated images to see what is ready to publish
+    available_slugs = []
+    for file in os.listdir(images_dir):
+        if file.endswith('.webp'):
+            slug = os.path.splitext(file)[0]
+            # Verify article also exists
+            if os.path.exists(os.path.join(articles_dir, f"{slug}.html")):
+                available_slugs.append(slug)
+                
+    print(f"Found {len(available_slugs)} articles with generated cover images.")
+    
+    # Filter out already published ones
+    to_publish = []
+    for slug in available_slugs:
+        pub_fb = is_published(slug, "facebook")
+        pub_ig = is_published(slug, "instagram") if IG_ACCOUNT_ID else True
+        pub_pin = is_published(slug, "pinterest") if PINTEREST_ACCESS_TOKEN else True
+        
+        if not (pub_fb and pub_ig and pub_pin):
+            to_publish.append(slug)
+            
+    print(f"Pending publication: {len(to_publish)} articles.")
+    
+    if not to_publish:
+        print("Everything has already been published! Nothing to do.")
         return
         
-    slug = sanitize_slug(keyword)
-    article_body = read_article_body(slug)
-    
-    if not article_body:
-        print(f"Error: Could not find HTML article file for '{keyword}' (Slug: {slug})")
+    # Get Pinterest board if publishing there
+    board_id = None
+    if PINTEREST_ACCESS_TOKEN:
+        boards = fetch_pinterest_boards()
+        if boards:
+            print("\nAvailable Pinterest Boards:")
+            for i, board in enumerate(boards, 1):
+                print(f" [{i}] {board['name']} (ID: {board['id']})")
+            choice = input(f"Choose Pinterest board (1-{len(boards)}, default 1): ").strip()
+            try:
+                idx = int(choice) - 1 if choice else 0
+                if idx < 0 or idx >= len(boards):
+                    idx = 0
+            except ValueError:
+                idx = 0
+            board_id = boards[idx]['id']
+            print(f"Selected Board: {boards[idx]['name']}\n")
+            
+    confirm = input(f"Would you like to start publishing the {len(to_publish)} pending posts? (yes/no): ").strip().lower()
+    if confirm not in ['yes', 'y']:
+        print("Exiting.")
         return
         
-    # Auto-generate caption
-    caption = call_openai_to_summarize(article_body, keyword)
-    print(f"\nGenerated Caption:\n{caption}\n")
-    
-    # URLs for the public image and article
-    image_url = f"{GITHUB_IMAGE_BASE}/{slug}.webp"
-    article_url = f"{SITE_ARTICLE_BASE}/{slug}.html"
-    
-    print(f"Image Source URL: {image_url}")
-    print(f"Article Link URL: {article_url}\n")
-    
-    confirm = input("Do you want to publish this to your social media channels? (yes/no): ").strip().lower()
-    if confirm != 'yes' and confirm != 'y':
-        print("Publishing cancelled.")
-        return
+    # Process one by one
+    for idx, slug in enumerate(to_publish, 1):
+        keyword = keywords_map.get(slug, slug.replace('-', ' ').capitalize())
+        print(f"\n--- [{idx}/{len(to_publish)}] Publishing: {keyword} (Slug: {slug}) ---")
         
-    # Publish to FB and IG
-    publish_to_facebook(image_url, caption, article_url)
-    publish_to_instagram(image_url, caption)
+        article_body = read_article_body(slug)
+        if not article_body:
+            print("Skipping - article body empty.")
+            continue
+            
+        caption = call_openai_to_summarize(article_body, keyword)
+        image_url = f"{GITHUB_IMAGE_BASE}/{slug}.webp"
+        article_url = f"{SITE_ARTICLE_BASE}/{slug}.html"
+        
+        # Publish
+        if META_ACCESS_TOKEN and FB_PAGE_ID:
+            publish_to_facebook(image_url, caption, article_url, slug)
+            publish_to_instagram(image_url, caption, slug)
+            
+        if PINTEREST_ACCESS_TOKEN and board_id:
+            title = f"{keyword.capitalize()} in Västerås"
+            publish_to_pinterest(board_id, image_url, title, caption, article_url, slug)
+            
+        print(f"[OK] Completed: {slug}")
+        # Brief sleep between posts to respect API rate limits
+        time.sleep(3)
 
 if __name__ == "__main__":
     main()
