@@ -42,6 +42,42 @@ def fetch_facebook_published_slugs():
         print(f"Failed to fetch Facebook feed: {e}")
     return slugs
 
+def find_best_match(instagram_caption, all_captions):
+    # Strip everything that is not an alphanumeric character
+    def clean(text):
+        return re.sub(r'[^a-z0-9]', '', text.lower())
+    
+    clean_ig = clean(instagram_caption)
+    if not clean_ig:
+        return None
+        
+    best_slug = None
+    best_ratio = 0
+    
+    for slug, details in all_captions.items():
+        cached = details.get("caption", "")
+        if not cached:
+            continue
+        
+        # Clean cached caption
+        cached_clean = re.sub(r'Read more:\s*https?://\S+', '', cached)
+        clean_cached = clean(cached_clean)
+        
+        if clean_cached in clean_ig or clean_ig in clean_cached:
+            return slug
+            
+        ig_words = set(re.findall(r'\w+', instagram_caption.lower()))
+        cached_words = set(re.findall(r'\w+', cached_clean.lower()))
+        if ig_words and cached_words:
+            overlap = len(ig_words.intersection(cached_words)) / max(len(ig_words), len(cached_words))
+            if overlap > best_ratio:
+                best_ratio = overlap
+                best_slug = slug
+                
+    if best_ratio > 0.6:
+        return best_slug
+    return None
+
 def fetch_instagram_published_slugs(all_captions):
     slugs = set()
     if not IG_ACCOUNT_ID:
@@ -57,16 +93,9 @@ def fetch_instagram_published_slugs(all_captions):
                 if not caption:
                     continue
                 
-                # Match Instagram caption with cached captions to find the slug
-                # We strip spaces and compare the first 40 characters
-                clean_ig = re.sub(r'\s+', '', caption[:40]).lower()
-                for slug, details in all_captions.items():
-                    cached_caption = details.get("caption", "")
-                    if cached_caption:
-                        clean_cached = re.sub(r'\s+', '', cached_caption[:40]).lower()
-                        if clean_ig in clean_cached or clean_cached in clean_ig:
-                            slugs.add(slug)
-                            break
+                slug = find_best_match(caption, all_captions)
+                if slug:
+                    slugs.add(slug)
     except Exception as e:
         print(f"Failed to fetch Instagram media: {e}")
     return slugs
