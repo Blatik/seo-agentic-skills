@@ -60,19 +60,20 @@ def call_openai_for_pinterest(keyword, intent, lsi, article_text):
     
     prompt = (
         f"You are an expert SMM manager specializing in Pinterest SEO and traffic growth.\n"
-        f"Write a highly optimized Pinterest Pin Title and Pin Description for a blog post about '{keyword}'.\n\n"
+        f"Your task is to analyze the provided article text and write a highly optimized Pinterest Pin Title and Pin Description based strictly on the key points, facts, and unique takeaways found in this specific article.\n\n"
         f"Target SEO Keyword: {keyword}\n"
         f"Search Intent / Context: {intent}\n"
-        f"LSI Keywords: {lsi}\n\n"
+        f"LSI Keywords to naturally keep in mind: {lsi}\n\n"
         f"Rules for Pinterest copy:\n"
         f"1. Pin Title (max 100 characters):\n"
         f"   - Must include the target keyword naturally.\n"
+        f"   - Must capture the core value/solution presented in the article.\n"
         f"   - Must be engaging and clickable (e.g. use words like 'How to', 'Secrets', 'Guide', 'Best').\n"
         f"   - Keep it under 100 characters.\n\n"
         f"2. Pin Description (max 500 characters):\n"
         f"   - Start with a compelling hook matching the user's search intent.\n"
-        f"   - Incorporate the keyword in the first sentence.\n"
-        f"   - Explain the value of reading the article.\n"
+        f"   - Summarize the specific key points or unique tips described in the article text below (e.g. 'Learn why...', 'Discover the difference between...').\n"
+        f"   - Incorporate the keyword naturally in the first 1-2 sentences.\n"
         f"   - End with a strong call to action (e.g. 'Click to read our full guide!').\n"
         f"   - Include 3-4 highly relevant hashtags at the end (e.g. #WindowCleaning #CleaningHacks #RenFröjd).\n"
         f"   - Do NOT use placeholders like [Link] or 'link in bio'.\n"
@@ -82,7 +83,7 @@ def call_openai_for_pinterest(keyword, intent, lsi, article_text):
         f"  \"pinterest_title\": \"...\",\n"
         f"  \"pinterest_description\": \"...\"\n"
         f"}}\n\n"
-        f"Article context / first paragraph:\n{article_text[:2000]}"
+        f"ARTICLE CONTENT TO ANALYZE:\n{article_text[:3500]}"
     )
     
     data = {
