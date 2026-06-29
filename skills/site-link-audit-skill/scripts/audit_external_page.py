@@ -6,7 +6,7 @@ import re
 from html.parser import HTMLParser
 
 # Bypass SSL certificate verification issues
-ssl_context = ssl._create_unverified_context()
+ssl_context = ssl.create_default_context()
 
 class LinkParser(HTMLParser):
     def __init__(self, base_url):

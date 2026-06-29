@@ -8,7 +8,7 @@ import ssl
 import time
 
 # Disable SSL verification for simple image downloading if needed
-ssl_context = ssl._create_unverified_context()
+ssl_context = ssl.create_default_context()
 
 def load_env():
     env_vars = {}
@@ -30,7 +30,7 @@ def call_gemini(prompt, system_instruction=None, json_mode=False):
     if not GEMINI_API_KEY:
         raise ValueError("GEMINI_API_KEY is not set in .env")
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     
     contents = [{"parts": [{"text": prompt}]}]
     
@@ -53,7 +53,7 @@ def call_gemini(prompt, system_instruction=None, json_mode=False):
     req = urllib.request.Request(
         url,
         data=json.dumps(data).encode('utf-8'),
-        headers={'Content-Type': 'application/json'},
+        headers={'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY},
         method='POST'
     )
     

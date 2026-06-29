@@ -6,7 +6,7 @@ import urllib.request
 import base64
 import time
 
-ssl_context = ssl._create_unverified_context()
+ssl_context = ssl.create_default_context()
 
 def load_env():
     env_vars = {}
@@ -64,7 +64,7 @@ def parse_intents():
 
 def generate_image_gemini(prompt, output_path):
     print(f"Generating image using Gemini Imagen 4.0: {output_path}")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key={GEMINI_API_KEY}"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict"
     
     # Strip Midjourney parameters like --ar 16:9
     clean_prompt = re.sub(r'--ar\s+\d+:\d+', '', prompt).strip()
@@ -89,7 +89,7 @@ def generate_image_gemini(prompt, output_path):
         req = urllib.request.Request(
             url,
             data=json.dumps(data).encode('utf-8'),
-            headers={'Content-Type': 'application/json'},
+            headers={'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY},
             method='POST'
         )
     except Exception as e:

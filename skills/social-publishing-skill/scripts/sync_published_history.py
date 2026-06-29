@@ -4,7 +4,7 @@ import re
 import urllib.request
 import ssl
 
-ssl_context = ssl._create_unverified_context()
+ssl_context = ssl.create_default_context()
 
 def load_env():
     env_vars = {}

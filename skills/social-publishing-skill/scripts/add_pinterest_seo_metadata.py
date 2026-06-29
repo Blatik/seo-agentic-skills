@@ -5,7 +5,7 @@ import ssl
 import time
 import urllib.request
 
-ssl_context = ssl._create_unverified_context()
+ssl_context = ssl.create_default_context()
 
 def load_env():
     env_vars = {}
