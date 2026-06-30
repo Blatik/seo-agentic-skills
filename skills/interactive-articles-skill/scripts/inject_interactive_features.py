@@ -265,7 +265,7 @@ AVATARS = [
         "area": "Gideonsberg",
         "alt_sv": "Sofia M. professionell fönsterputsning Västerås",
         "alt_en": "Sofia M. professional window cleaning Västerås",
-        "quote_sv": "Lätt att boka via WhatsApp, punktliga och mycket noggranna. Alltid ett rent nöje att komma hem efter putsning!",
+        "quote_sv": "Lätt to boka via WhatsApp, punktliga och mycket noggranna. Alltid ett rent nöje att komma hem efter putsning!",
         "quote_en": "Easy to book via WhatsApp, punctual and very thorough. Always a pure joy to come home after their cleaning!"
     }
 ]
@@ -337,9 +337,12 @@ def process_html_file(filepath):
             html = html.replace(intro_p_block, intro_p_block + "\n" + slider_html)
             print(f"  - Injected Before/After Slider")
 
+    # Case-insensitive FAQ header regex supporting both <h2> and <h3> tags
+    faq_section_pattern = r'(<(h2|h3)[^>]*>(?:Vanliga\s+[fF]rågor|Frequently\s+Asked\s+Questions|FAQ).*?</\2>)(.*?)(<(?:h2|h3)|<!--|$)'
+
     # 2. Testimonial Card Injection (before FAQs)
     if 'article-testimonial' not in html:
-        faq_anchor = re.search(r'(<h2>(?:Vanliga frågor om fönsterputsning|Frequently Asked Questions).*?</h2>)', html)
+        faq_anchor = re.search(r'(<(h2|h3)[^>]*>(?:Vanliga\s+[fF]rågor|Frequently\s+Asked\s+Questions|FAQ).*?</\2>)', html, re.IGNORECASE)
         if faq_anchor:
             anchor_text = faq_anchor.group(1)
             
@@ -447,20 +450,22 @@ def process_html_file(filepath):
             print(f"  - Injected RUT Calculator")
 
     # 4. FAQ Accordions Conversion
-    faq_section_pattern = r'(<h2>(?:Vanliga frågor om fönsterputsning|Frequently Asked Questions).*?</h2>)(.*?)(<h2>|$|<!--)'
-    faq_match = re.search(faq_section_pattern, html, re.DOTALL)
+    faq_match = re.search(faq_section_pattern, html, re.DOTALL | re.IGNORECASE)
     if faq_match:
         faq_header = faq_match.group(1)
         faq_body = faq_match.group(2)
-        faq_item_pattern = r'<h3>(.*?)</h3>\s*<p>(.*?)</p>'
-        faq_items = re.findall(faq_item_pattern, faq_body, re.DOTALL)
         
-        if faq_items:
-            new_faq_body = "\n"
-            for q, a in faq_items:
-                new_faq_body += f'      <details class="faq-accordion">\n        <summary>{q.strip()}</summary>\n        <div class="faq-accordion-content">\n          <p>{a.strip()}</p>\n        </div>\n      </details>\n'
-            html = html.replace(faq_header + faq_body, faq_header + "\n" + new_faq_body + "\n      ")
-            print(f"  - Converted FAQs to Accordions")
+        # Check if already accordionized
+        if 'details class="faq-accordion"' not in faq_body:
+            faq_item_pattern = r'<h3>(.*?)</h3>\s*<p>(.*?)</p>'
+            faq_items = re.findall(faq_item_pattern, faq_body, re.DOTALL)
+            
+            if faq_items:
+                new_faq_body = "\n"
+                for q, a in faq_items:
+                    new_faq_body += f'      <details class="faq-accordion">\n        <summary>{q.strip()}</summary>\n        <div class="faq-accordion-content">\n          <p>{a.strip()}</p>\n        </div>\n      </details>\n'
+                html = html.replace(faq_header + faq_body, faq_header + "\n" + new_faq_body + "\n      ")
+                print(f"  - Converted FAQs to Accordions")
 
     # 5. Injections of JavaScript Logics (Sliders + Calculator)
     if 'before-after-slider' in html and 'const sliders = document.querySelectorAll(".before-after-slider")' not in html:
