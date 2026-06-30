@@ -1,5 +1,6 @@
 import os
 import re
+import hashlib
 
 # CSS styles required for all interactive components
 INTERACTIVE_CSS = """
@@ -139,6 +140,20 @@ INTERACTIVE_CSS = """
   border-radius: 0 16px 16px 0;
   padding: 24px 30px;
   margin: 35px 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.article-testimonial-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #14b8a6;
+  flex-shrink: 0;
+}
+.article-testimonial-content {
+  flex-grow: 1;
 }
 .article-testimonial blockquote {
   font-style: italic;
@@ -206,6 +221,62 @@ INTERACTIVE_CSS = """
 }
 """
 
+# The 5 custom SEO-optimized client review profiles
+AVATARS = [
+    {
+        "img": "kundomdome-fonsterputsning-vasteras-emma.webp",
+        "name": "Emma S.",
+        "area": "Önsta-Gryta",
+        "alt_sv": "Emma S. fönsterputsning kundomdöme Västerås",
+        "alt_en": "Emma S. window cleaning customer review Västerås",
+        "quote_sv": "Ren Fröjd gör ett fantastiskt jobb med fönstren! Allt är superrent, inga ränder, och priset är supertydligt.",
+        "quote_en": "Ren Fröjd does an amazing job with our windows! Everything is super clean, no streaks, and the price is very transparent."
+    },
+    {
+        "img": "kundrecension-fonsterputs-vasteras-anders.webp",
+        "name": "Anders L.",
+        "area": "Lillåudden",
+        "alt_sv": "Anders L. fönsterputs kundrecension Västerås",
+        "alt_en": "Anders L. window cleaning customer review Västerås",
+        "quote_sv": "Mycket nöjd med fönsterputsningen! Snabbt, smidigt och med ett fast pris på 300 kr/timme utan krångel.",
+        "quote_en": "Very satisfied with the window cleaning! Quick, smooth, and at a flat rate of 300 SEK/hour without any hassle."
+    },
+    {
+        "img": "fonsterputs-lagenhet-vasteras-malin.webp",
+        "name": "Malin B.",
+        "area": "Klockartorpet",
+        "alt_sv": "Malin B. fönsterputs lägenhet Västerås",
+        "alt_en": "Malin B. window cleaning apartment Västerås",
+        "quote_sv": "Professionell och trevlig personal. Fönstren i vår bostadsrätt blev helt perfekta, rekommenderas varmt!",
+        "quote_en": "Professional and friendly staff. The windows in our apartment turned out absolutely perfect, highly recommended!"
+    },
+    {
+        "img": "hemstadning-fonsterputs-vasteras-johan.webp",
+        "name": "Johan K.",
+        "area": "Erikslund",
+        "alt_sv": "Johan K. hemstädning fönsterputs Västerås",
+        "alt_en": "Johan K. house cleaning window cleaning Västerås",
+        "quote_sv": "Den bästa städfirman i Västerås. Fönstertvätten utfördes med stor noggrannhet och slutresultatet blev utmärkt.",
+        "quote_en": "The best cleaning company in Västerås. The window washing was done with great precision and the result was excellent."
+    },
+    {
+        "img": "professionell-fonsterputsning-vasteras-sofia.webp",
+        "name": "Sofia M.",
+        "area": "Gideonsberg",
+        "alt_sv": "Sofia M. professionell fönsterputsning Västerås",
+        "alt_en": "Sofia M. professional window cleaning Västerås",
+        "quote_sv": "Lätt att boka via WhatsApp, punktliga och mycket noggranna. Alltid ett rent nöje att komma hem efter putsning!",
+        "quote_en": "Easy to book via WhatsApp, punctual and very thorough. Always a pure joy to come home after their cleaning!"
+    }
+]
+
+def get_avatar_for_file(filepath):
+    # Select one of the 5 avatars based on hash of filename to distribute them evenly
+    basename = os.path.basename(filepath)
+    hash_val = int(hashlib.md5(basename.encode('utf-8')).hexdigest(), 16)
+    idx = hash_val % len(AVATARS)
+    return AVATARS[idx]
+
 def inject_styles_to_css(styles_path):
     if not os.path.exists(styles_path):
         return
@@ -213,15 +284,22 @@ def inject_styles_to_css(styles_path):
         content = f.read()
     
     if '/* --- Before/After Image Slider --- */' not in content:
-        with open(styles_path, 'a', encoding='utf-8') as f:
-            f.write("\n" + INTERACTIVE_CSS)
+        content = re.sub(r'/\* --- Interactive Testimonial Cards ---\s*.*$', '', content, flags=re.DOTALL)
+        with open(styles_path, 'w', encoding='utf-8') as f:
+            f.write(content.strip() + "\n\n" + INTERACTIVE_CSS.strip() + "\n")
         print(f"Injected styles to {styles_path}")
+    else:
+        content = re.sub(r'/\* --- Before/After Image Slider ---\s*.*$', '', content, flags=re.DOTALL)
+        with open(styles_path, 'w', encoding='utf-8') as f:
+            f.write(content.strip() + "\n\n" + INTERACTIVE_CSS.strip() + "\n")
+        print(f"Updated styles in {styles_path}")
 
 def process_html_file(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         html = f.read()
 
     is_english = '/en/' in filepath
+    avatar_data = get_avatar_for_file(filepath)
     
     # 1. Before/After Image Slider
     if 'before-after-slider' not in html:
@@ -261,36 +339,49 @@ def process_html_file(filepath):
 
     # 2. Testimonial Card Injection (before FAQs)
     if 'article-testimonial' not in html:
-        # Locate H2 FAQ as anchor to insert testimonial before it
         faq_anchor = re.search(r'(<h2>(?:Vanliga frågor om fönsterputsning|Frequently Asked Questions).*?</h2>)', html)
         if faq_anchor:
             anchor_text = faq_anchor.group(1)
+            
+            img_filename = avatar_data["img"]
+            name = avatar_data["name"]
+            area = avatar_data["area"]
+            
             if is_english:
-                testimonial_html = """
+                quote = avatar_data["quote_en"]
+                alt = avatar_data["alt_en"]
+                testimonial_html = f"""
     <!-- Interactive Client Testimonial -->
     <div class="article-testimonial">
-      <blockquote>"Ren Fröjd does an amazing job with our windows in Västerås. Everything is super clean, no streaks, and the price of 300 SEK/hour is very transparent!"</blockquote>
-      <div class="article-testimonial-author">
-        <span>⭐ Anders L., Västerås (Lillåudden)</span>
+      <img class="article-testimonial-avatar" src="../images/{img_filename}" alt="{alt}">
+      <div class="article-testimonial-content">
+        <blockquote>"{quote}"</blockquote>
+        <div class="article-testimonial-author">
+          <span>⭐ {name}, Västerås ({area})</span>
+        </div>
       </div>
     </div>
 """
             else:
-                testimonial_html = """
+                quote = avatar_data["quote_sv"]
+                alt = avatar_data["alt_sv"]
+                testimonial_html = f"""
     <!-- Interactive Client Testimonial -->
     <div class="article-testimonial">
-      <blockquote>"Ren Fröjd gör ett fantastiskt jobb med våra fönster i Västerås. Allt är superrent, inga ränder, och priset på 300 kr/timme är mycket transparent!"</blockquote>
-      <div class="article-testimonial-author">
-        <span>⭐ Anders L., Västerås (Lillåudden)</span>
+      <img class="article-testimonial-avatar" src="../images/{img_filename}" alt="{alt}">
+      <div class="article-testimonial-content">
+        <blockquote>"{quote}"</blockquote>
+        <div class="article-testimonial-author">
+          <span>⭐ {name}, Västerås ({area})</span>
+        </div>
       </div>
     </div>
 """
             html = html.replace(anchor_text, testimonial_html + "\n    " + anchor_text)
-            print(f"  - Injected Testimonial Card")
+            print(f"  - Injected Testimonial Card ({name})")
 
     # 3. Interactive RUT Calculator
     if 'rut-calculator' not in html:
-        # Insert RUT calculator before the booking CTA or closing article block
         book_anchor = re.search(r'(<div style="text-align: center; margin: 30px 0;"><a href=".*?#book" class="btn btn-primary">)', html)
         if book_anchor:
             anchor_text = book_anchor.group(1)
@@ -428,13 +519,11 @@ def process_html_file(filepath):
         f.write(html)
 
 def run_batch():
-    # Paths configuration
     paths = [
         ('/Users/blatik/Documents/mama/artiklar', '../'),
         ('/Users/blatik/Documents/mama/en/artiklar', '../../')
     ]
     
-    # Inject styles
     inject_styles_to_css('/Users/blatik/Documents/mama/styles.css')
     
     total_processed = 0
@@ -454,6 +543,9 @@ def run_batch():
                 if rel_root == '../../':
                     content = content.replace('src="../images/window-cleaning-vasteras-before.webp"', 'src="../../images/window-cleaning-vasteras-before.webp"')
                     content = content.replace('src="../images/window-cleaning-vasteras-after.webp"', 'src="../../images/window-cleaning-vasteras-after.webp"')
+                    for avatar in AVATARS:
+                        img_name = avatar["img"]
+                        content = content.replace(f'src="../images/{img_name}"', f'src="../../images/{img_name}"')
                 
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(content)
