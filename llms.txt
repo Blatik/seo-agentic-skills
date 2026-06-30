@@ -42,6 +42,10 @@ This framework is built for agentic AI coders to execute modular, automated SEO 
 - **`delete_all_instagram_posts.py`**: Deletes all Instagram posts via API and resets history.
 - **`sync_published_history.py`**: Syncs local database history with Meta API reality.
 
+### 6. Interactive Articles Injection (`skills/interactive-articles-skill/`)
+*Batch-injects interactive Before/After sliders, price calculators, collapsible FAQs, and reviews into articles.*
+- **`inject_interactive_features.py`**: Automatically updates all 149 article pages with custom CSS/JS-driven sliders, native details-tag FAQ accordions, a dynamic städtimmar RUT price calculator, and localized client quotes.
+
 ---
 
 ## Execution Guidelines
