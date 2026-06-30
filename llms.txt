@@ -1,0 +1,50 @@
+# Agentic SEO Automation Skills Framework — llms.txt
+
+> A compressed index of reusable AI Skills and scripts for SEO website optimization, content generation, image asset processing, and social media automation.
+
+## Core Purpose
+
+This framework is built for agentic AI coders to execute modular, automated SEO operations. Each skill contains self-contained python scripts in the `scripts/` directory, configured via a root `.env` file.
+
+---
+
+## Skills Catalog
+
+### 1. Image Optimization and Generation (`skills/image-optimization-skill/`)
+*Automates cover asset creation and conversion to optimized WebP format.*
+- **`generate_all_images.py`**: Automatic cover image generator using Imagen/DALL-E APIs. Parses article keywords and writes missing assets to `en/images/` or `images/`.
+- **`convert_all_site_images_to_webp.py`**: Scans the project root, converts all raw content images (PNG/JPG) to lightweight `.webp`, deletes original assets, and updates `<img>`, `og:image`, and JSON-LD schema tags across all HTML files.
+
+### 2. SEO Content Generation (`skills/seo-content-generator-skill/`)
+*Automates keyword target planning, LSI insertion, and bulk article authoring.*
+- **`generate_all_json_briefs.py`**: Compiles search intent, keyword priorities, and structured outlines into target JSON briefs within `research_briefs/`.
+- **`generate_unique_lsi.py`**: Extracts, filters, and clusters Latent Semantic Indexing (LSI) terms to map natural language density and prevent keyword stuffing.
+- **`generate_articles.py`**: Direct article writer. Reads JSON briefs, queries LLM APIs, and outputs structured HTML articles complete with custom schemas, navigation headers, and styled lists.
+
+### 3. SEO Site Maintenance (`skills/seo-site-maintenance-skill/`)
+*Executes batch updates, metadata injection, and link-healing operations across HTML pages.*
+- **`add_breadcrumbs_to_all.py`**: Injects JSON-LD BreadcrumbList schemas into the `<head>` of all HTML files.
+- **`add_footer_links.py`**: Injects or updates custom footer navigation menus in bulk.
+- **`update_ctas.py`**: Batch modifies call-to-action buttons, booking anchors, and commercial target links.
+- **`replace_broken_links.py`**: Audits and replaces/removes dead external links.
+- **`audit_articles.py`**: Audits page formatting, tag integrity, and schema structure.
+
+### 4. Site Link Audit (`skills/site-link-audit-skill/`)
+*Crawl and inspect links to optimize PageRank flow and avoid dofollow authority leakage.*
+- **`audit_external_page.py <URL>`**: Crawls a specific URL to list link counts, internal/external distribution, and detect external "dofollow" authority leaks.
+- **`audit_interlinking.py`**: Scans all local HTML files, checks for broken internal links, detects orphan pages (0 incoming links), and lists poorly interlinked pages (fewer than 2 incoming links).
+
+### 5. Social Media Publishing (`skills/social-publishing-skill/`)
+*Automates caption writing and post publishing to Facebook, Instagram, and Pinterest.*
+- **`generate_all_captions.py`**: Analyzes website articles, writes engaging summaries with location context ("Västerås, Sweden"), Sweden tags (`#fönsterputs`), pricing (300 SEK/hour), and saves them to `scratch/all_captions.json`.
+- **`publish_to_meta.py`**: Matches generated images/articles, publishes to Facebook, Instagram, and Pinterest APIs, and tracks history in `scratch/published_posts.json` to prevent duplicates.
+- **`clean_instagram_captions.py`**: Utility to update post captions (e.g. replacing 'link below' references with 'link in bio').
+- **`delete_all_instagram_posts.py`**: Deletes all Instagram posts via API and resets history.
+- **`sync_published_history.py`**: Syncs local database history with Meta API reality.
+
+---
+
+## Execution Guidelines
+1. **API Keys**: Ensure `.env` is populated with active OpenAI, Google, Meta, and Pinterest keys.
+2. **Path Scope**: Scripts should be run from the root of the framework using `python3 scripts/<script_name>.py`.
+3. **Link Integrity**: Always run `audit_interlinking.py` after editing page links or creating new articles.
