@@ -27,9 +27,18 @@ seo-agentic-skills/
     └── seo-site-maintenance-skill/ # Updates CTAs, footer links, JSON-LD breadcrumbs, and heals links
 ```
 
+## LLM Knowledge Base & Context Compression (Karpathy Pattern)
+
+This framework is built around the **Context Compression / LLM Wiki / llms.txt** pattern (described by Andrej Karpathy as an architectural solution for context engineering and knowledge compilation).
+
+Instead of feeding massive raw codebases or entire dialog history into the LLM on every agent turn, this framework compiles your project's capabilities into a structured, lightweight index:
+1. **Compressed Context**: We supply a root-level `llms.txt` file summarizing all skills and scripts in a high-density, LLM-friendly format.
+2. **Layered Intelligence**: The agent works with a compiled markdown wiki (the `SKILL.md` documents) as its map, and only pulls in specific scripts or file nodes when needed, significantly reducing token consumption and preventing context drift.
+3. **Structured Constraints**: Crucial constraints, logic rules, and instructions are baked into the data structure rather than requiring the model to reason them out dynamically from scratch every time.
+
 ## How to use this framework in your AI environment
 
-1. **Scan Skills**: Instruct your AI assistant to read the `SKILL.md` files inside the `skills/` directory.
+1. **Scan Skills**: Instruct your AI assistant to read the `llms.txt` or individual `SKILL.md` files inside the `skills/` directory.
 2. **Execute Scripts**: AI agents can run the specific scripts using standard commands (e.g., `python3 scripts/<script_name>.py`) inside each skill directory.
 3. **Environment Configuration**: Make sure to supply a `.env` file containing required API keys at the root of the project where you execute these scripts.
 
